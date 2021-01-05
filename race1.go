@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -16,17 +17,22 @@ var x int
 func main() {
 
 	fmt.Println("start")
-	go f("t1")
-	// fmt.Println("hi!")
-	go f("t2")
 
-	time.Sleep(time.Second) // making sure everything can finish
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	go f("t1", &wg)
+	time.Sleep(time.Millisecond)
+	go f("t2", &wg)
+
+	wg.Wait()
 	fmt.Println("end")
 }
 
-func f(name string) {
+func f(name string, wg *sync.WaitGroup) {
 	for i := 0; i < 5; i++ {
 		x++
 		fmt.Printf("%s %d\n", name, x)
 	}
+	wg.Done()
 }
