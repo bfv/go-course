@@ -3,62 +3,48 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
 
-const (
-	maxLength = 20
-)
-
-type Name struct {
-	fname string
-	lname string
+type Name struct{
+	fName string
+	lName string
 }
 
-var fileName string
+func(pct *Name) SetName (fname string, lname string)  {
+	pct.fName = fname
+	pct.lName = lname
+}
 
-func main() {
+func main(){
 
-	namesList := make([]Name, 0, 1)
+	var file string
+	nameArr := make([]Name,0)
+	var name Name
 
-	fmt.Print("enter the filename : ")
-	fmt.Scan(&fileName)
+	fmt.Print("Enter the txt file's name (including .txt extension): ")
+	fmt.Scan(&file)
 
-	file, err := os.Open(fileName)
+	f, err := os.Open(file)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
+	defer f.Close()
 
-	scanner := bufio.NewScanner(file)
-
+	scanner := bufio.NewScanner(f)
+	scanner.Split(bufio.ScanLines)
 	for scanner.Scan() {
-		line := scanner.Text()
-		fullName := strings.Split(line, " ")
-		var p Name
-
-		//Duplicated code : After learning functions with i'll make this logic reusable
-		fmt.Println("taille : ", len(fullName[0]))
-		if len(fullName[0]) > maxLength {
-			p.fname = fullName[0][:maxLength]
-		} else {
-			p.fname = fullName[0]
-		}
-
-		if len(fullName[1]) > maxLength {
-			p.lname = fullName[1][:maxLength]
-		} else {
-			p.lname = fullName[1]
-		}
-
-		namesList = append(namesList, p)
+		lineName := strings.Fields(scanner.Text())
+		name.SetName(lineName[0], lineName[1])
+		nameArr = append(nameArr, name)
 	}
-
-	fmt.Println("\nList of names\n===============")
-	for _, v := range namesList {
-		fmt.Printf("%s %s\n", v.fname, v.lname)
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
 	}
+	f.Close()
 
-	file.Close()
+	fmt.Println(nameArr)
 }
