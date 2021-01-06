@@ -29,7 +29,7 @@ func main() {
 
 	for i := 0; i < parts-1; i++ {
 		sortedSlice := <-c
-		var pos int
+		pos := 0
 		for j := 0; j < len(sortedSlice); j++ {
 			for pos < len(sortedAll) && sortedAll[pos] < sortedSlice[j] {
 				pos++
