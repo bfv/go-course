@@ -11,8 +11,10 @@ type ChopStick struct {
 }
 
 type Philosopher struct {
-	nr              int
-	leftCS, rightCS *ChopStick
+	nr      int
+	c       chan bool
+	leftCS  *ChopStick
+	rightCS *ChopStick
 }
 
 const philoCount = 5
@@ -23,8 +25,14 @@ var onceDo sync.Once
 
 func main() {
 
-	ca := make(chan bool, 2) // available channel
-	var cr chan bool
+	// init 5 channels, one for each philo
+	var c [5]chan bool
+	for i := 0; i < 5; i++ {
+		c[i] = make(chan bool)
+	}
+
+	// readiness channel
+	cr := make(chan int)
 
 	sticks := make([]*ChopStick, 5)
 	for i := 0; i < 5; i++ {
@@ -33,28 +41,27 @@ func main() {
 
 	philos := make([]*Philosopher, 5)
 	for i := 0; i < 5; i++ {
-		philos[i] = &Philosopher{i + 1, sticks[i], sticks[(i+1)%5]}
+		philos[i] = &Philosopher{i + 1, c[i], sticks[i], sticks[(i+1)%5]}
 	}
 
 	for i := 0; i < philoCount; i++ {
 		wg.Add(1)
-		go philos[i].eat(ca, cr)
+		go philos[i].eat(cr)
 	}
 
-	go host(ca, cr)
+	wg.Add(1)
+	go host(&c, cr)
 
 	wg.Wait()
-	// iets met een Wait
 }
 
 // deadlock mogelijkheid
-func (p Philosopher) eat(ca chan bool, cr chan bool) {
+func (p Philosopher) eat(cr chan int) {
 
-	for i := 0; i < 3; i++ {
+	for i := 1; i < 4; i++ {
 
-		fmt.Println("philosopher", p.nr, " waiting for meal", i)
-		<-ca // wait for availability
-		fmt.Printf("p=%d,eat=%d locking\n", p.nr, i)
+		<-p.c // wait for availability
+
 		p.leftCS.Lock()
 		p.rightCS.Lock()
 
@@ -65,27 +72,35 @@ func (p Philosopher) eat(ca chan bool, cr chan bool) {
 		p.rightCS.Unlock()
 		p.leftCS.Unlock()
 
-		fmt.Printf("p=%d,eat=%d unlocked again\n", p.nr, i)
-		cr <- true // signal readiness
+		cr <- p.nr // signal readiness
 	}
 	wg.Done()
 }
 
-func host(ca chan bool, cr chan bool) {
+func host(c *[5]chan bool, cr chan int) {
 
-	totalMeals := philoCount * mealCount
+	// start eating for first two philo's
+	c[0] <- true
+	c[2] <- true
 
-	fmt.Println("start host")
-	ca <- true
-	fmt.Println("available 0")
-	ca <- true
-	fmt.Println("available 1")
-
-	for i := 0; i < totalMeals-2; i++ {
-		fmt.Println("host waits for ready of ", i)
-		<-cr // wait for ready signal
-		fmt.Println("ready received", i)
-		ca <- true
-		fmt.Println("available", i+2)
+	next := 3
+	for i := 2; i < 15; i++ {
+		<-cr // wait for philo's signal of readiness
+		next = whosNext(next)
+		c[next-1] <- true
 	}
+
+	<-cr
+	<-cr
+
+	fmt.Println("host done")
+	wg.Done()
+}
+
+func whosNext(current int) int {
+	next := (current + 2) % 5
+	if next == 0 {
+		next = 5
+	}
+	return next
 }
